@@ -4,8 +4,8 @@
   "codeowners": [],
   "config_flow": true,
   "dependencies": [],
-  "documentation": "https://github.com/local/assigned_tasks",
+  "documentation": "https://github.com/wattsjus/ha-to-do",
   "iot_class": "local_push",
-  "issue_tracker": "https://github.com/local/assigned_tasks/issues",
+  "issue_tracker": "https://github.com/wattsjus/ha-to-do/issues",
   "version": "0.1.0"
 }

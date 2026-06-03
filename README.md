@@ -1,5 +1,7 @@
 # Assigned Tasks for Home Assistant
 
+[![Open your Home Assistant instance and add this repository to HACS](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=wattsjus&repository=ha-to-do&category=integration)
+
 Assigned Tasks is a Home Assistant custom integration for assigning shared tasks to people. Each person gets a filtered To-do entity so standard Home Assistant To-do cards can show only that person's work.
 
 ## What it does
@@ -11,7 +13,9 @@ Assigned Tasks is a Home Assistant custom integration for assigning shared tasks
 
 ## Install
 
-Copy `custom_components/assigned_tasks` into your Home Assistant config directory:
+Use the button above to add this repository to HACS as a custom integration repository.
+
+For manual installation, copy `custom_components/assigned_tasks` into your Home Assistant config directory:
 
 ```bash
 scp -r custom_components/assigned_tasks user@home-assistant-host:/usr/share/hassio/homeassistant/custom_components/
