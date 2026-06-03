@@ -8,9 +8,6 @@ Assigned Tasks is a Home Assistant custom integration for assigning shared tasks
 - Choose whether each assignee must complete their own assignment or whether any assignee completes the whole task.
 - Defaults to `each_assignee`.
 - Add expiration and reset settings to lists and individual tasks.
-- Set reminder lead time globally, per list, and per task.
-- Send notifications to people with remaining work before expiration or reset.
-- Fall back to persistent notifications when a person does not have a notify service configured.
 
 ## Install
 
@@ -62,8 +59,6 @@ current_user: true
 
 The card lets you add people, create/archive lists, create/edit/delete tasks, choose multiple assignees, and choose whether every assigned person must complete the task or whether any one assigned person completes it for everyone.
 
-Use **Settings > Devices & services > Assigned Tasks > Configure** only for the global default reminder lead time.
-
 Use Home Assistant actions/services for assignment metadata that the built-in To-do list dialog cannot represent, such as assigned people, completion behavior, archiving, and unarchiving.
 
 The services below are useful for automations or bulk setup.
@@ -75,7 +70,6 @@ service: assigned_tasks.add_person
 data:
   person_id: justin
   name: Justin
-  notify_service: notify.mobile_app_justins_iphone
 ```
 
 ```yaml
@@ -94,7 +88,6 @@ data:
   name: Chores
   resets_at: "2026-05-31T08:00:00-05:00"
   reset_interval: daily
-  notify_before_minutes: 90
 ```
 
 Create a task where everyone completes their own assignment:
@@ -107,7 +100,6 @@ data:
   assignees:
     - justin
     - alex
-  notify_before_minutes: 30
 ```
 
 Create a task where one person can complete it for everyone:
@@ -153,6 +145,3 @@ Lists and tasks support:
 - `expires_at`: hides the task/list after the time passes.
 - `resets_at`: clears completions when the time passes.
 - `reset_interval`: `none`, `daily`, `weekly`, or `monthly`.
-- `notify_before_minutes`: reminder lead time. New lists default to the integration default. New tasks default to their list's value unless explicitly set.
-
-The integration checks once per minute. When a task or list is inside the reminder window, it notifies only people with remaining work.
