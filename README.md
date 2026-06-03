@@ -1,0 +1,158 @@
+# Assigned Tasks for Home Assistant
+
+Assigned Tasks is a Home Assistant custom integration for assigning shared tasks to people. Each person gets a filtered To-do entity so standard Home Assistant To-do cards can show only that person's work.
+
+## What it does
+
+- Assign one task to one or more people.
+- Choose whether each assignee must complete their own assignment or whether any assignee completes the whole task.
+- Defaults to `each_assignee`.
+- Add expiration and reset settings to lists and individual tasks.
+- Set reminder lead time globally, per list, and per task.
+- Send notifications to people with remaining work before expiration or reset.
+- Fall back to persistent notifications when a person does not have a notify service configured.
+
+## Install
+
+Copy `custom_components/assigned_tasks` into your Home Assistant config directory:
+
+```bash
+scp -r custom_components/assigned_tasks user@home-assistant-host:/usr/share/hassio/homeassistant/custom_components/
+```
+
+Restart Home Assistant, then add **Assigned Tasks** from **Settings > Devices & services > Add integration**.
+
+## Basic setup
+
+Assigned Tasks adds its own **Assigned Tasks** sidebar item. Use that panel for the main workflow: add people, create/archive lists, create/edit/delete tasks, assign multiple people, and choose completion behavior.
+
+The Lovelace card remains available if you want dashboard widgets:
+
+```yaml
+type: custom:assigned-tasks-card
+title: Assigned Tasks
+```
+
+For a person-filtered card:
+
+```yaml
+type: custom:assigned-tasks-card
+title: Justin's Tasks
+person_id: justin
+```
+
+For the currently logged-in Home Assistant user:
+
+```yaml
+type: custom:assigned-tasks-card
+title: My Tasks
+current_user: true
+```
+
+The filtered cards show only tasks assigned to that person and let them mark their assignment done or reopen it.
+
+For a simple viewer card:
+
+```yaml
+type: custom:assigned-tasks-card
+title: My Tasks
+view: simple
+current_user: true
+```
+
+The card lets you add people, create/archive lists, create/edit/delete tasks, choose multiple assignees, and choose whether every assigned person must complete the task or whether any one assigned person completes it for everyone.
+
+Use **Settings > Devices & services > Assigned Tasks > Configure** only for the global default reminder lead time.
+
+Use Home Assistant actions/services for assignment metadata that the built-in To-do list dialog cannot represent, such as assigned people, completion behavior, archiving, and unarchiving.
+
+The services below are useful for automations or bulk setup.
+
+Add people first. The `person_id` is the id used in task assignments.
+
+```yaml
+service: assigned_tasks.add_person
+data:
+  person_id: justin
+  name: Justin
+  notify_service: notify.mobile_app_justins_iphone
+```
+
+```yaml
+service: assigned_tasks.add_person
+data:
+  person_id: alex
+  name: Alex
+```
+
+Create a list:
+
+```yaml
+service: assigned_tasks.create_list
+data:
+  list_id: chores
+  name: Chores
+  resets_at: "2026-05-31T08:00:00-05:00"
+  reset_interval: daily
+  notify_before_minutes: 90
+```
+
+Create a task where everyone completes their own assignment:
+
+```yaml
+service: assigned_tasks.create_task
+data:
+  list_id: chores
+  title: Take out trash
+  assignees:
+    - justin
+    - alex
+  notify_before_minutes: 30
+```
+
+Create a task where one person can complete it for everyone:
+
+```yaml
+service: assigned_tasks.create_task
+data:
+  list_id: chores
+  title: Bring bins back from curb
+  assignees:
+    - justin
+    - alex
+  completion_mode: any_assignee
+```
+
+## Dashboard cards
+
+After adding people, Home Assistant will create To-do entities such as:
+
+- `todo.justin_tasks`
+- `todo.alex_tasks`
+
+Use the built-in To-do List card:
+
+```yaml
+type: todo-list
+entity: todo.justin_tasks
+title: Justin's Tasks
+```
+
+```yaml
+type: todo-list
+entity: todo.alex_tasks
+title: Alex's Tasks
+```
+
+When a person checks off an item, the component records completion for that person. If the task uses `any_assignee`, checking it off completes it for every assignee.
+
+## Reset and expiration
+
+Lists and tasks support:
+
+- `expires_at`: hides the task/list after the time passes.
+- `resets_at`: clears completions when the time passes.
+- `reset_interval`: `none`, `daily`, `weekly`, or `monthly`.
+- `notify_before_minutes`: reminder lead time. New lists default to the integration default. New tasks default to their list's value unless explicitly set.
+
+The integration checks once per minute. When a task or list is inside the reminder window, it notifies only people with remaining work.

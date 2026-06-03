@@ -1,0 +1,319 @@
+add_person:
+  name: Add person
+  description: Add a person who can receive assigned tasks.
+  fields:
+    name:
+      required: true
+      selector:
+        text:
+    person_id:
+      selector:
+        text:
+    notify_service:
+      selector:
+        text:
+    enabled:
+      default: true
+      selector:
+        boolean:
+
+update_person:
+  name: Update person
+  description: Update a person's name, notification service, or enabled state.
+  fields:
+    person_id:
+      required: true
+      selector:
+        text:
+    name:
+      selector:
+        text:
+    notify_service:
+      selector:
+        text:
+    enabled:
+      selector:
+        boolean:
+
+remove_person:
+  name: Remove person
+  description: Remove a person and all of their assignments.
+  fields:
+    person_id:
+      required: true
+      selector:
+        text:
+
+create_list:
+  name: Create list
+  description: Create a task list with optional expiration and reset settings.
+  fields:
+    name:
+      required: true
+      selector:
+        text:
+    list_id:
+      selector:
+        text:
+    expires_at:
+      selector:
+        datetime:
+    resets_at:
+      selector:
+        datetime:
+    reset_interval:
+      selector:
+        select:
+          options:
+            - none
+            - daily
+            - weekly
+            - monthly
+            - yearly
+    reset_every:
+      default: 1
+      selector:
+        number:
+          min: 1
+          max: 365
+          mode: box
+    visible_to:
+      selector:
+        object:
+    notify_before_minutes:
+      selector:
+        number:
+          min: 1
+          max: 10080
+          mode: box
+
+update_list:
+  name: Update list
+  description: Update a task list's name, expiration, reset, or reminder settings.
+  fields:
+    list_id:
+      required: true
+      selector:
+        text:
+    name:
+      selector:
+        text:
+    expires_at:
+      selector:
+        datetime:
+    resets_at:
+      selector:
+        datetime:
+    reset_interval:
+      selector:
+        select:
+          options:
+            - none
+            - daily
+            - weekly
+            - monthly
+            - yearly
+    reset_every:
+      selector:
+        number:
+          min: 1
+          max: 365
+          mode: box
+    visible_to:
+      selector:
+        object:
+    notify_before_minutes:
+      selector:
+        number:
+          min: 1
+          max: 10080
+          mode: box
+    archived:
+      selector:
+        boolean:
+
+archive_list:
+  name: Archive list
+  description: Archive a task list without deleting its tasks.
+  fields:
+    list_id:
+      required: true
+      selector:
+        text:
+
+unarchive_list:
+  name: Unarchive list
+  description: Restore an archived task list to active To-do views.
+  fields:
+    list_id:
+      required: true
+      selector:
+        text:
+
+delete_list:
+  name: Delete list
+  description: Delete a task list and all tasks in it.
+  fields:
+    list_id:
+      required: true
+      selector:
+        text:
+
+create_task:
+  name: Create task
+  description: Create and assign a task.
+  fields:
+    list_id:
+      required: true
+      selector:
+        text:
+    title:
+      required: true
+      selector:
+        text:
+    assignees:
+      required: true
+      selector:
+        object:
+    description:
+      selector:
+        text:
+          multiline: true
+    completion_mode:
+      default: each_assignee
+      selector:
+        select:
+          options:
+            - label: Each person completes their own
+              value: each_assignee
+            - label: Any person completes the whole task
+              value: any_assignee
+    visible_to:
+      selector:
+        object:
+    due_at:
+      selector:
+        datetime:
+    expires_at:
+      selector:
+        datetime:
+    resets_at:
+      selector:
+        datetime:
+    reset_interval:
+      selector:
+        select:
+          options:
+            - none
+            - daily
+            - weekly
+            - monthly
+            - yearly
+    reset_every:
+      default: 1
+      selector:
+        number:
+          min: 1
+          max: 365
+          mode: box
+    notify_before_minutes:
+      selector:
+        number:
+          min: 1
+          max: 10080
+          mode: box
+
+update_task:
+  name: Update task
+  description: Update assignment, text, completion mode, or schedule for a task.
+  fields:
+    task_id:
+      required: true
+      selector:
+        text:
+    title:
+      selector:
+        text:
+    assignees:
+      selector:
+        object:
+    description:
+      selector:
+        text:
+          multiline: true
+    completion_mode:
+      selector:
+        select:
+          options:
+            - label: Each person completes their own
+              value: each_assignee
+            - label: Any person completes the whole task
+              value: any_assignee
+    visible_to:
+      selector:
+        object:
+    due_at:
+      selector:
+        datetime:
+    expires_at:
+      selector:
+        datetime:
+    resets_at:
+      selector:
+        datetime:
+    reset_interval:
+      selector:
+        select:
+          options:
+            - none
+            - daily
+            - weekly
+            - monthly
+            - yearly
+    reset_every:
+      selector:
+        number:
+          min: 1
+          max: 365
+          mode: box
+    notify_before_minutes:
+      selector:
+        number:
+          min: 1
+          max: 10080
+          mode: box
+
+delete_task:
+  name: Delete task
+  description: Delete a task.
+  fields:
+    task_id:
+      required: true
+      selector:
+        text:
+
+complete_assignment:
+  name: Complete assignment
+  description: Complete or reopen one person's assignment.
+  fields:
+    task_id:
+      required: true
+      selector:
+        text:
+    person_id:
+      required: true
+      selector:
+        text:
+    complete:
+      default: true
+      selector:
+        boolean:
+
+reset_list:
+  name: Reset list
+  description: Clear completions for all tasks in a list.
+  fields:
+    list_id:
+      required: true
+      selector:
+        text:
