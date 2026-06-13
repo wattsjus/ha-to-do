@@ -235,7 +235,11 @@ class AssignedTasksCard extends HTMLElement {
   }
 
   simpleListSections(personId) {
-    const lists = this.visibleLists({ includeArchived: false });
+    let lists = this.visibleLists({ includeArchived: false });
+    const listId = this.configuredListId();
+    if (listId) {
+      lists = lists.filter((list) => list.id === listId);
+    }
     if (personId && !this.state.people.some((person) => person.id === personId)) {
       return `<div class="empty">No Home Assistant person is linked to this card.</div>`;
     }
@@ -724,6 +728,10 @@ class AssignedTasksCard extends HTMLElement {
     return this.state.people.find((person) => person.user_id === userId)?.id || "";
   }
 
+  configuredListId() {
+    return String(this.config.list_id || "").trim();
+  }
+
   canToggleAssigneeChips() {
     return Boolean(
       this.state.permissions?.can_toggle_assignments
@@ -770,6 +778,16 @@ class AssignedTasksCard extends HTMLElement {
 
 if (!customElements.get("assigned-tasks-card")) {
   customElements.define("assigned-tasks-card", AssignedTasksCard);
+}
+
+window.customCards = window.customCards || [];
+if (!window.customCards.some((card) => card.type === "assigned-tasks-card")) {
+  window.customCards.push({
+    type: "assigned-tasks-card",
+    name: "Assigned Tasks",
+    description: "Show assigned task lists for a person, the current user, or everyone.",
+    preview: true,
+  });
 }
 
 class AssignedTasksPanel extends AssignedTasksCard {

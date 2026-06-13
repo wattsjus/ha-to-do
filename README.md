@@ -61,6 +61,16 @@ view: simple
 current_user: true
 ```
 
+By default, the card shows all non-archived task lists that apply to the configured person or current user. To show only one task list, set `list_id`:
+
+```yaml
+type: custom:assigned-tasks-card
+title: Chores
+view: simple
+current_user: true
+list_id: chores
+```
+
 The card lets you add people, create/archive lists, create/edit/delete tasks, choose multiple assignees, and choose whether every assigned person must complete the task or whether any one assigned person completes it for everyone.
 
 Use Home Assistant actions/services for assignment metadata that the built-in To-do list dialog cannot represent, such as assigned people, completion behavior, archiving, and unarchiving.
