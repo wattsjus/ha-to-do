@@ -60,7 +60,7 @@ from .coordinator import AssignedTasksCoordinator
 from .models import parse_datetime, utc_iso
 
 AssignedTasksConfigEntry = ConfigEntry
-FRONTEND_VERSION = "20260613.0008"
+FRONTEND_VERSION = "20260613.0009"
 FRONTEND_MODULE = f"assigned-tasks-card-{FRONTEND_VERSION}.js"
 
 
@@ -755,6 +755,7 @@ class AssignedTasksTaskView(HomeAssistantView):
             ATTR_RESETS_AT,
             ATTR_RESET_INTERVAL,
             ATTR_RESET_EVERY,
+            ATTR_WEEKLY_DAYS,
             ATTR_NOTIFY_BEFORE_MINUTES,
             ATTR_VISIBLE_TO,
         ):
