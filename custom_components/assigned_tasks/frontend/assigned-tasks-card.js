@@ -191,23 +191,26 @@ class AssignedTasksCard extends HTMLElement {
       <ha-card header="${this.escape(this.config.title || (person ? `${person.name}'s Tasks` : "Tasks"))}">
         <style>
           .simple{padding:0 16px 16px;display:grid;gap:14px;justify-items:start}
-          .list{border:1px solid var(--divider-color);border-radius:8px;overflow:hidden;width:fit-content;max-width:100%;min-width:min(100%,320px)}
+          .list{border:1px solid var(--divider-color);border-radius:8px;overflow:hidden;width:100%;max-width:100%;min-width:0}
           .list-header{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center;padding:12px 14px;background:var(--secondary-background-color)}
           .list-title{font-weight:600}
           .expand-toggle{width:32px;height:32px;padding:0}
           .list-summary{font-size:12px;line-height:1;color:#fff;white-space:nowrap;border-radius:999px;padding:4px 8px;min-width:34px;text-align:center;background-clip:border-box}
           .list-summary.complete{color:#fff;font-size:12px;font-weight:400}
-          .task-table{display:grid;grid-template-columns:minmax(10rem,max-content) minmax(0,max-content) 96px;width:fit-content;max-width:100%;overflow:hidden}
+          .task-table{display:grid;grid-template-columns:minmax(0,1fr) max-content max-content;max-width:100%;overflow:hidden}
           .due-group,.task{display:contents}
           .due-heading{grid-column:1 / -1;padding:8px 14px;background:var(--secondary-background-color);color:var(--secondary-text-color);font-size:12px;font-weight:600;border-top:1px solid var(--divider-color)}
           .task-title,.assignee-cell,.assignment-cell{padding:12px 14px;border-top:1px solid var(--divider-color);box-sizing:border-box}
           .description-row{grid-column:1 / -1;color:var(--secondary-text-color);font-size:13px;line-height:1.4;white-space:pre-wrap;overflow-wrap:anywhere;padding:0 14px 12px 14px}
           .title{font-weight:500}
           .task-title{min-width:0;display:flex;align-items:center;gap:8px;flex-wrap:wrap;overflow-wrap:anywhere}
-          .assignee-cell{min-width:0;width:100%;align-self:stretch;justify-self:stretch;display:flex;align-items:center}
+          .assignee-cell{min-width:0;align-self:stretch;display:flex;align-items:center;justify-content:flex-end}
+          .task.has-action .task-title{grid-column:1}
+          .task.has-action .assignee-cell{grid-column:2;padding-right:8px}
+          .task.has-action .assignment-cell{grid-column:3;display:flex}
           .done .title{text-decoration:line-through;color:var(--secondary-text-color)}
           .meta{font-size:12px;color:var(--secondary-text-color);margin-top:3px}
-          .assignee-status{display:flex;gap:6px;flex-wrap:wrap;align-items:center;max-width:100%;overflow:hidden}
+          .assignee-status{display:flex;gap:6px;flex-wrap:wrap;align-items:center;justify-content:flex-end;max-width:100%;overflow:visible}
           .chip{display:inline-flex;align-items:center;border-radius:999px;padding:4px 8px;font-size:12px;line-height:1;color:#fff;max-width:100%;box-sizing:border-box;white-space:nowrap;background-clip:border-box}
           .chip,.chip *{color:#fff !important}
           .chip-button{appearance:none;-webkit-appearance:none;border:0;padding:4px 8px;margin:0;background:var(--secondary-text-color);line-height:1;color:#fff}
@@ -220,11 +223,11 @@ class AssignedTasksCard extends HTMLElement {
           .deadline-warning{background:rgba(255,193,7,.22)}
           .deadline-critical{background:rgba(244,67,54,.18)}
           button{cursor:pointer;border:1px solid var(--divider-color);border-radius:6px;padding:7px 10px;background:transparent;color:var(--primary-text-color)}
-          .assignment-cell{width:96px;display:flex;align-items:center;justify-content:flex-end}
+          .assignment-cell{display:none;width:88px;align-items:center;justify-content:flex-end;padding-left:0}
           .assignment-toggle{width:72px;white-space:nowrap}
           .empty{color:var(--secondary-text-color);padding:16px;text-align:center}
           .description-toggle{padding:3px 8px;font-size:12px;white-space:nowrap}
-          @media (max-width: 520px){.task-table{grid-template-columns:minmax(8rem,max-content) minmax(0,max-content) 96px}.task-title,.assignee-cell,.assignment-cell{padding:10px 8px}.description-row{padding:0 8px 10px 8px}}
+          @media (max-width: 520px){.task-table{grid-template-columns:minmax(0,1fr) max-content max-content}.task-title,.assignee-cell,.assignment-cell{padding:10px 8px}.description-row{padding:0 8px 10px 8px}.assignment-cell{width:80px}.assignment-toggle{width:68px}}
         </style>
         <div class="simple">
           ${this.simpleListSections(personId)}
@@ -291,7 +294,7 @@ class AssignedTasksCard extends HTMLElement {
     const deadlineClass = this.deadlineClass(task);
     const descriptionExpanded = this.expandedDescriptions.has(task.id);
     return `
-      <div class="task ${globallyDone ? "done" : ""}">
+      <div class="task ${globallyDone ? "done" : ""} ${assignedToViewer ? "has-action" : ""}">
         <div class="task-title ${deadlineClass}">
           <div class="title">${this.escape(task.title)}</div>
           ${task.description ? `<button class="description-toggle" data-id="${task.id}">${descriptionExpanded ? "Hide description" : "Description"}</button>` : ""}
