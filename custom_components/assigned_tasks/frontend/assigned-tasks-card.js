@@ -85,10 +85,11 @@ class AssignedTasksCard extends HTMLElement {
     }
   }
 
-  visibleLists() {
+  visibleLists(options = {}) {
+    const includeArchived = options.includeArchived ?? (this.isPanel && this.showArchived);
     const personId = this.effectivePersonId();
     return this.state.lists.filter((list) => {
-      if (!this.showArchived && list.archived) return false;
+      if (!includeArchived && list.archived) return false;
       if (personId && !this.isVisibleToPerson(list, personId)) return false;
       return true;
     });
@@ -234,7 +235,7 @@ class AssignedTasksCard extends HTMLElement {
   }
 
   simpleListSections(personId) {
-    const lists = this.visibleLists();
+    const lists = this.visibleLists({ includeArchived: false });
     if (personId && !this.state.people.some((person) => person.id === personId)) {
       return `<div class="empty">No Home Assistant person is linked to this card.</div>`;
     }
