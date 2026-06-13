@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import calendar
+from datetime import timedelta
 from pathlib import Path
 from typing import Any
 
@@ -57,7 +59,7 @@ from .coordinator import AssignedTasksCoordinator
 from .models import parse_datetime, utc_iso
 
 AssignedTasksConfigEntry = ConfigEntry
-FRONTEND_VERSION = "20260613.0005"
+FRONTEND_VERSION = "20260613.0006"
 FRONTEND_MODULE = f"assigned-tasks-card-{FRONTEND_VERSION}.js"
 
 
@@ -456,7 +458,14 @@ def _state_payload(
     ):
         task_list = coordinator.store.data.lists.get(task.list_id)
         data = task.as_dict()
-        data["computed_due_at"] = utc_iso(_next_due_at(task.expires_at, task.resets_at))
+        data["computed_due_at"] = utc_iso(
+            _next_due_at(
+                task.expires_at,
+                task.resets_at,
+                task.reset_interval,
+                task.reset_every,
+            )
+        )
         data["assignee_names"] = [
             coordinator.store.data.people[person_id].name
             for person_id in task.assignees
@@ -505,15 +514,40 @@ def _ensure_can_toggle_assignment(
     raise web.HTTPForbidden(text="Only admins can update another person's assignment")
 
 
-def _next_due_at(expires_at, resets_at):
+def _next_due_at(expires_at, resets_at, reset_interval=None, reset_every=1):
     """Return the next visible due boundary for a scheduled item."""
     now = dt_util.utcnow()
+    if resets_at is not None and reset_interval in ("daily", "weekly", "monthly", "yearly"):
+        every = max(1, int(reset_every or 1))
+        due_at = resets_at
+        while due_at.date() <= now.date():
+            due_at = _next_recurring_due_at(due_at, reset_interval, every)
+        return due_at
     candidates = [
         value
         for value in (expires_at, resets_at)
         if value is not None and value >= now
     ]
     return min(candidates) if candidates else None
+
+
+def _next_recurring_due_at(current, interval, every):
+    """Calculate the next displayed due boundary for a repeating task."""
+    if interval == "daily":
+        return current + timedelta(days=every)
+    if interval == "weekly":
+        return current + timedelta(weeks=every)
+    if interval == "monthly":
+        month = current.month + every
+        year = current.year + (month - 1) // 12
+        month = ((month - 1) % 12) + 1
+        day = min(current.day, calendar.monthrange(year, month)[1])
+        return current.replace(year=year, month=month, day=day)
+    if interval == "yearly":
+        year = current.year + every
+        day = min(current.day, calendar.monthrange(year, current.month)[1])
+        return current.replace(year=year, day=day)
+    return current
 
 
 class AssignedTasksStateView(HomeAssistantView):
