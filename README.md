@@ -132,6 +132,24 @@ data:
     - alex
 ```
 
+Create a task that is due on selected weekdays:
+
+```yaml
+service: assigned_tasks.create_task
+data:
+  list_id: chores
+  title: Pack lunch
+  assignees:
+    - joshua
+  reset_interval: weekly
+  weekly_days:
+    - mon
+    - tue
+    - wed
+    - thu
+    - fri
+```
+
 Create a task where one person can complete it for everyone:
 
 ```yaml

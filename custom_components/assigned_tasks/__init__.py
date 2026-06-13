@@ -33,6 +33,7 @@ from .const import (
     ATTR_RESETS_AT,
     ATTR_RESET_EVERY,
     ATTR_RESET_INTERVAL,
+    ATTR_WEEKLY_DAYS,
     ATTR_TASK_ID,
     ATTR_TITLE,
     ATTR_VISIBLE_TO,
@@ -59,7 +60,7 @@ from .coordinator import AssignedTasksCoordinator
 from .models import parse_datetime, utc_iso
 
 AssignedTasksConfigEntry = ConfigEntry
-FRONTEND_VERSION = "20260613.0007"
+FRONTEND_VERSION = "20260613.0008"
 FRONTEND_MODULE = f"assigned-tasks-card-{FRONTEND_VERSION}.js"
 
 
@@ -195,6 +196,7 @@ async def _async_register_services(hass: HomeAssistant) -> None:
             resets_at=_parse(call.data.get(ATTR_RESETS_AT)),
             reset_interval=call.data.get(ATTR_RESET_INTERVAL),
             reset_every=call.data.get(ATTR_RESET_EVERY, 1),
+            weekly_days=[str(day) for day in call.data.get(ATTR_WEEKLY_DAYS, [])],
             notify_before_minutes=call.data.get(ATTR_NOTIFY_BEFORE_MINUTES),
             visible_to=[str(item) for item in call.data.get(ATTR_VISIBLE_TO, [])],
         )
@@ -304,6 +306,7 @@ async def _async_register_services(hass: HomeAssistant) -> None:
                 vol.Optional(ATTR_RESET_EVERY, default=1): vol.All(
                     vol.Coerce(int), vol.Range(min=1, max=365)
                 ),
+                vol.Optional(ATTR_WEEKLY_DAYS, default=[]): cv.ensure_list,
                 vol.Optional(ATTR_NOTIFY_BEFORE_MINUTES): vol.All(
                     vol.Coerce(int), vol.Range(min=1, max=10080)
                 ),
@@ -333,6 +336,7 @@ async def _async_register_services(hass: HomeAssistant) -> None:
                 vol.Optional(ATTR_RESET_EVERY): vol.All(
                     vol.Coerce(int), vol.Range(min=1, max=365)
                 ),
+                vol.Optional(ATTR_WEEKLY_DAYS): cv.ensure_list,
                 vol.Optional(ATTR_NOTIFY_BEFORE_MINUTES): vol.All(
                     vol.Coerce(int), vol.Range(min=1, max=10080)
                 ),
@@ -394,6 +398,8 @@ def _schedule_changes(data: dict[str, Any]) -> dict[str, Any]:
         changes[ATTR_RESET_INTERVAL] = data.get(ATTR_RESET_INTERVAL)
     if ATTR_RESET_EVERY in data:
         changes[ATTR_RESET_EVERY] = data.get(ATTR_RESET_EVERY)
+    if ATTR_WEEKLY_DAYS in data:
+        changes[ATTR_WEEKLY_DAYS] = data.get(ATTR_WEEKLY_DAYS)
     if ATTR_NOTIFY_BEFORE_MINUTES in data:
         changes[ATTR_NOTIFY_BEFORE_MINUTES] = data.get(ATTR_NOTIFY_BEFORE_MINUTES)
     if ATTR_ARCHIVED in data:
@@ -465,6 +471,7 @@ def _state_payload(
                 task.resets_at,
                 task.reset_interval,
                 task.reset_every,
+                task.weekly_days,
             )
         )
         data["assignee_names"] = [
@@ -515,9 +522,13 @@ def _ensure_can_toggle_assignment(
     raise web.HTTPForbidden(text="Only admins can update another person's assignment")
 
 
-def _next_due_at(due_at, expires_at, resets_at, reset_interval=None, reset_every=1):
+def _next_due_at(
+    due_at, expires_at, resets_at, reset_interval=None, reset_every=1, weekly_days=None
+):
     """Return the next visible due boundary for a scheduled item."""
     now = dt_util.utcnow()
+    if reset_interval == "weekly" and weekly_days:
+        return _next_weekly_day_due_at(weekly_days)
     if resets_at is not None and reset_interval in ("daily", "weekly", "monthly", "yearly"):
         every = max(1, int(reset_every or 1))
         due_at = resets_at
@@ -559,6 +570,24 @@ def _default_recurring_due_at(interval, every):
     current = dt_util.now().replace(hour=23, minute=59, second=59, microsecond=0)
     next_due = _next_recurring_due_at(current, interval, every)
     return dt_util.as_utc(next_due)
+
+
+def _next_weekly_day_due_at(weekly_days):
+    """Return the next selected weekday at local end-of-day."""
+    selected = [
+        index for index, day in enumerate(("mon", "tue", "wed", "thu", "fri", "sat", "sun"))
+        if day in set(weekly_days)
+    ]
+    if not selected:
+        return None
+    now = dt_util.now()
+    for offset in range(0, 8):
+        candidate = (now + timedelta(days=offset)).replace(
+            hour=23, minute=59, second=59, microsecond=0
+        )
+        if candidate.weekday() in selected and candidate > now:
+            return dt_util.as_utc(candidate)
+    return None
 
 
 class AssignedTasksStateView(HomeAssistantView):
@@ -694,6 +723,7 @@ class AssignedTasksTasksView(HomeAssistantView):
             resets_at=_parse(data.get(ATTR_RESETS_AT)),
             reset_interval=data.get(ATTR_RESET_INTERVAL),
             reset_every=data.get(ATTR_RESET_EVERY, 1),
+            weekly_days=[str(day) for day in data.get(ATTR_WEEKLY_DAYS, [])],
             notify_before_minutes=data.get(ATTR_NOTIFY_BEFORE_MINUTES),
             visible_to=[str(person_id) for person_id in data.get(ATTR_VISIBLE_TO, [])],
         )

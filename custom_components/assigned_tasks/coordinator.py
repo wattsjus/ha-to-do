@@ -31,6 +31,7 @@ from .const import (
     ATTR_RESETS_AT,
     ATTR_RESET_EVERY,
     ATTR_RESET_INTERVAL,
+    ATTR_WEEKLY_DAYS,
     ATTR_TASK_ID,
     ATTR_TITLE,
     ATTR_VISIBLE_TO,
@@ -289,6 +290,7 @@ class AssignedTasksCoordinator:
         resets_at: datetime | None = None,
         reset_interval: str | None = None,
         reset_every: int = 1,
+        weekly_days: list[str] | None = None,
         notify_before_minutes: int | None = None,
         visible_to: list[str] | None = None,
     ) -> Task:
@@ -312,6 +314,7 @@ class AssignedTasksCoordinator:
             resets_at=resets_at,
             reset_interval=reset_interval,
             reset_every=max(1, int(reset_every or 1)),
+            weekly_days=_clean_weekly_days(weekly_days or []),
             notify_before_minutes=notify_before_minutes,
             visible_to=list(dict.fromkeys(visible_to)),
         )
@@ -406,7 +409,10 @@ class AssignedTasksCoordinator:
                 task.completed_by.clear()
                 task.last_notified_at = None
                 task.resets_at = _next_reset(
-                    task.resets_at, task.reset_interval, task.reset_every
+                    task.resets_at,
+                    task.reset_interval,
+                    task.reset_every,
+                    task.weekly_days,
                 )
                 changed = True
 
@@ -538,8 +544,17 @@ def _apply_schedule_changes(target: Any, changes: dict[str, Any]) -> None:
         target.reset_interval = changes[ATTR_RESET_INTERVAL] or None
     if ATTR_RESET_EVERY in changes:
         target.reset_every = max(1, int(changes[ATTR_RESET_EVERY] or 1))
+    if ATTR_WEEKLY_DAYS in changes and hasattr(target, "weekly_days"):
+        target.weekly_days = _clean_weekly_days(changes[ATTR_WEEKLY_DAYS] or [])
     if ATTR_NOTIFY_BEFORE_MINUTES in changes:
         target.notify_before_minutes = changes[ATTR_NOTIFY_BEFORE_MINUTES]
+
+
+def _clean_weekly_days(days: list[str]) -> list[str]:
+    """Return unique valid weekday ids in Monday-Sunday order."""
+    valid = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]
+    selected = {str(day).lower() for day in days}
+    return [day for day in valid if day in selected]
 
 
 def _is_expired(now: datetime, expires_at: datetime | None) -> bool:
@@ -586,11 +601,18 @@ def _remaining_people(tasks: list[Task]) -> list[str]:
     return people
 
 
-def _next_reset(current: datetime, interval: str | None, every: int = 1) -> datetime | None:
+def _next_reset(
+    current: datetime,
+    interval: str | None,
+    every: int = 1,
+    weekly_days: list[str] | None = None,
+) -> datetime | None:
     """Calculate the next reset time."""
     every = max(1, int(every or 1))
     if interval in (None, "", "none"):
         return None
+    if interval == "weekly" and weekly_days:
+        return _next_weekly_reset(current, weekly_days)
     if interval == "daily":
         return current + timedelta(days=every)
     if interval == "weekly":
@@ -612,6 +634,23 @@ def _next_reset(current: datetime, interval: str | None, every: int = 1) -> date
     raise HomeAssistantError(
         "reset_interval must be one of none, daily, weekly, monthly, or yearly"
     )
+
+
+def _next_weekly_reset(current: datetime, weekly_days: list[str]) -> datetime | None:
+    """Calculate the next reset on one of the selected weekdays."""
+    selected = {
+        index
+        for index, day in enumerate(("mon", "tue", "wed", "thu", "fri", "sat", "sun"))
+        if day in set(weekly_days)
+    }
+    if not selected:
+        return None
+    current_local = dt_util.as_local(current)
+    for offset in range(1, 8):
+        candidate = current_local + timedelta(days=offset)
+        if candidate.weekday() in selected:
+            return dt_util.as_utc(candidate)
+    return None
 
 
 def _last_day_of_month(year: int, month: int) -> int:

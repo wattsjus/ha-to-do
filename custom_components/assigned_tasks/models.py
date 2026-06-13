@@ -127,6 +127,7 @@ class Task:
     resets_at: datetime | None = None
     reset_interval: str | None = None
     reset_every: int = 1
+    weekly_days: list[str] = field(default_factory=list)
     notify_before_minutes: int | None = None
     visible_to: list[str] = field(default_factory=list)
     completed_by: dict[str, str] = field(default_factory=dict)
@@ -150,6 +151,7 @@ class Task:
             resets_at=parse_datetime(data.get("resets_at")),
             reset_interval=data.get("reset_interval") or None,
             reset_every=max(1, int(data.get("reset_every", 1) or 1)),
+            weekly_days=[str(day) for day in data.get("weekly_days", [])],
             notify_before_minutes=data.get("notify_before_minutes"),
             visible_to=[str(person_id) for person_id in data.get("visible_to", [])],
             completed_by=dict(data.get("completed_by", {})),
@@ -170,6 +172,7 @@ class Task:
             "resets_at": utc_iso(self.resets_at),
             "reset_interval": self.reset_interval,
             "reset_every": self.reset_every,
+            "weekly_days": list(self.weekly_days),
             "notify_before_minutes": self.notify_before_minutes,
             "visible_to": list(self.visible_to),
             "completed_by": dict(self.completed_by),

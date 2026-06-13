@@ -368,6 +368,7 @@ class AssignedTasksCard extends HTMLElement {
           <div><label>Starts</label><input id="task-resets" type="date" min="${this.todayDate()}" value="${this.escape(this.dateInputValue(defaults.resets_at))}"></div>
           <div><label>Ends</label><input id="task-expires" type="date" min="${this.todayDate()}" value="${this.escape(this.dateInputValue(defaults.expires_at))}"></div>
           <div><label>Repeat every</label><div class="row"><input id="task-reset-every" type="number" min="1" value="${this.escape(defaults.reset_every)}" style="max-width:90px"><select id="task-reset-interval">${this.intervalOptions(defaults.reset_interval)}</select></div></div>
+          <div><label>Weekly days</label><div class="row">${this.weekdayOptions(defaults.weekly_days)}</div><div class="muted">Used when repeat interval is Weeks.</div></div>
         </div>
         <label>Description</label><textarea id="task-description">${this.escape(task?.description || "")}</textarea>
         <label>Who must complete it?</label>
@@ -432,6 +433,7 @@ class AssignedTasksCard extends HTMLElement {
       resets_at: task?.resets_at || "",
       reset_interval: task?.reset_interval || "",
       reset_every: task?.reset_every || 1,
+      weekly_days: task?.weekly_days || [],
     };
   }
 
@@ -567,6 +569,7 @@ class AssignedTasksCard extends HTMLElement {
       resets_at: this.dateValue("#task-resets", true),
       reset_interval: this.value("#task-reset-interval"),
       reset_every: this.numberValue("#task-reset-every") || 1,
+      weekly_days: this.value("#task-reset-interval") === "weekly" ? this.checkedValues(".weekly-day") : [],
       visible_to: this.showVisibility ? this.visibilityValues(".task-visible") : (task?.visible_to || []),
     };
   }
@@ -589,6 +592,14 @@ class AssignedTasksCard extends HTMLElement {
     return [["", "Does not repeat"], ["daily", "Days"], ["weekly", "Weeks"], ["monthly", "Months"], ["yearly", "Years"]]
       .map(([id, label]) => `<option value="${id}" ${value === id ? "selected" : ""}>${label}</option>`)
       .join("");
+  }
+
+  weekdayOptions(selected = []) {
+    const checked = new Set(selected || []);
+    return [
+      ["mon", "Mon"], ["tue", "Tue"], ["wed", "Wed"], ["thu", "Thu"],
+      ["fri", "Fri"], ["sat", "Sat"], ["sun", "Sun"],
+    ].map(([id, label]) => `<label class="row" style="margin:0"><input class="weekly-day" type="checkbox" value="${id}" ${checked.has(id) ? "checked" : ""} style="width:auto">${label}</label>`).join("");
   }
 
   renderListProgress(list) {
