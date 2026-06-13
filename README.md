@@ -61,6 +61,8 @@ view: simple
 current_user: true
 ```
 
+The card includes a visual editor in Lovelace. Use it to choose the people and task lists shown by the card.
+
 By default, the card shows all non-archived task lists that apply to the configured person or current user. To show only one task list, set `list_id`:
 
 ```yaml
@@ -69,6 +71,20 @@ title: Chores
 view: simple
 current_user: true
 list_id: chores
+```
+
+To show multiple people or multiple lists, use `person_ids` and `list_ids`:
+
+```yaml
+type: custom:assigned-tasks-card
+title: Kids' Tasks
+view: simple
+person_ids:
+  - joshua
+  - alex
+list_ids:
+  - chores
+  - school
 ```
 
 The card lets you add people, create/archive lists, create/edit/delete tasks, choose multiple assignees, and choose whether every assigned person must complete the task or whether any one assigned person completes it for everyone.
