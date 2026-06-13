@@ -59,7 +59,7 @@ from .coordinator import AssignedTasksCoordinator
 from .models import parse_datetime, utc_iso
 
 AssignedTasksConfigEntry = ConfigEntry
-FRONTEND_VERSION = "20260613.0006"
+FRONTEND_VERSION = "20260613.0007"
 FRONTEND_MODULE = f"assigned-tasks-card-{FRONTEND_VERSION}.js"
 
 
@@ -460,6 +460,7 @@ def _state_payload(
         data = task.as_dict()
         data["computed_due_at"] = utc_iso(
             _next_due_at(
+                task.due_at,
                 task.expires_at,
                 task.resets_at,
                 task.reset_interval,
@@ -514,7 +515,7 @@ def _ensure_can_toggle_assignment(
     raise web.HTTPForbidden(text="Only admins can update another person's assignment")
 
 
-def _next_due_at(expires_at, resets_at, reset_interval=None, reset_every=1):
+def _next_due_at(due_at, expires_at, resets_at, reset_interval=None, reset_every=1):
     """Return the next visible due boundary for a scheduled item."""
     now = dt_util.utcnow()
     if resets_at is not None and reset_interval in ("daily", "weekly", "monthly", "yearly"):
@@ -523,9 +524,12 @@ def _next_due_at(expires_at, resets_at, reset_interval=None, reset_every=1):
         while due_at.date() <= now.date():
             due_at = _next_recurring_due_at(due_at, reset_interval, every)
         return due_at
+    if reset_interval in ("daily", "weekly", "monthly", "yearly"):
+        every = max(1, int(reset_every or 1))
+        return _default_recurring_due_at(reset_interval, every)
     candidates = [
         value
-        for value in (expires_at, resets_at)
+        for value in (due_at, expires_at, resets_at)
         if value is not None and value >= now
     ]
     return min(candidates) if candidates else None
@@ -548,6 +552,13 @@ def _next_recurring_due_at(current, interval, every):
         day = min(current.day, calendar.monthrange(year, current.month)[1])
         return current.replace(year=year, day=day)
     return current
+
+
+def _default_recurring_due_at(interval, every):
+    """Calculate a default end-of-day due boundary for an unanchored repeating task."""
+    current = dt_util.now().replace(hour=23, minute=59, second=59, microsecond=0)
+    next_due = _next_recurring_due_at(current, interval, every)
+    return dt_util.as_utc(next_due)
 
 
 class AssignedTasksStateView(HomeAssistantView):
