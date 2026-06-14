@@ -396,7 +396,7 @@ class AssignedTasksCard extends HTMLElement {
         <h3>Tasks in ${this.escape(list.name)}</h3>
         <table>
           <thead><tr><th>Task</th><th>Assigned</th><th>Due</th></tr></thead>
-          <tbody>${this.listTasks().map((item) => `<tr class="${this.deadlineClass(item)}"><td><a href="#" class="task-edit" data-id="${item.id}">${this.escape(item.title)}</a></td><td>${this.renderAssigneeStatus(item)}</td><td>${this.escape(this.dateInputValue(item.computed_due_at))}</td></tr>`).join("") || `<tr><td colspan="3" class="empty">No tasks in this list.</td></tr>`}</tbody>
+          <tbody>${this.tasksForList(list.id, { includeFuture: true }).map((item) => `<tr class="${this.deadlineClass(item)}"><td><a href="#" class="task-edit" data-id="${item.id}">${this.escape(item.title)}</a></td><td>${this.renderAssigneeStatus(item)}</td><td>${this.escape(this.dateInputValue(item.computed_due_at))}</td></tr>`).join("") || `<tr><td colspan="3" class="empty">No tasks in this list.</td></tr>`}</tbody>
         </table>
       </section>`;
   }
@@ -608,11 +608,13 @@ class AssignedTasksCard extends HTMLElement {
     return `<span class="list-progress" ${this.progressStyle(progress.complete, progress.total)}>${progress.complete}/${progress.total}</span>`;
   }
 
-  tasksForList(listId) {
+  tasksForList(listId, options = {}) {
     const personIds = this.configuredPersonIds();
+    const includeFuture = options.includeFuture || false;
     return this.state.tasks
       .filter((task) => {
         if (task.list_id !== listId) return false;
+        if (!includeFuture && !this.hasTaskStarted(task)) return false;
         if (personIds.length === 0) return true;
         return personIds.some((personId) => (
           this.isVisibleToPerson(task, personId) && (task.assignees || []).includes(personId)
@@ -626,6 +628,12 @@ class AssignedTasksCard extends HTMLElement {
         return left.index - right.index;
       })
       .map(({ task }) => task);
+  }
+
+  hasTaskStarted(task) {
+    const start = this.parseDate(task.resets_at || task.due_at);
+    if (!start) return true;
+    return this.startOfDay(start) <= this.startOfDay(new Date());
   }
 
   isTaskComplete(task) {
