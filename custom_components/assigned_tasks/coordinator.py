@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 import calendar
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 import logging
 from typing import Any
 
@@ -49,6 +49,7 @@ _LOGGER = logging.getLogger(__name__)
 SIGNAL_UPDATED = f"{DOMAIN}_updated"
 SIGNAL_PERSON_ADDED = f"{DOMAIN}_person_added"
 SIGNAL_LIST_ADDED = f"{DOMAIN}_list_added"
+EVENT_CHECKLIST_CLEAR = f"{DOMAIN}_checklist_clear"
 
 
 class AssignedTasksCoordinator:
@@ -60,6 +61,7 @@ class AssignedTasksCoordinator:
         self.entry = entry
         self.store = AssignedTasksStore(hass)
         self._unsub_interval: Callable[[], None] | None = None
+        self._last_end_of_day_audit_date: date | None = None
 
     async def async_load(self) -> None:
         """Load persisted state and start timers."""
@@ -396,6 +398,7 @@ class AssignedTasksCoordinator:
         """Handle reminders and resets."""
         now = dt_util.as_utc(now)
         changed = False
+        self._fire_end_of_day_audit(now)
         for task_list in self.store.data.lists.values():
             if task_list.archived:
                 continue
@@ -418,6 +421,43 @@ class AssignedTasksCoordinator:
 
         if changed:
             await self._async_save_and_update()
+
+    def _fire_end_of_day_audit(self, now: datetime) -> None:
+        """Fire events for active lists with no overdue tasks at end of day."""
+        local_now = dt_util.as_local(now)
+        if local_now.hour != 23 or local_now.minute != 59:
+            return
+        audit_date = local_now.date()
+        if self._last_end_of_day_audit_date == audit_date:
+            return
+        self._last_end_of_day_audit_date = audit_date
+
+        for task_list in self.store.data.lists.values():
+            if task_list.archived:
+                continue
+            due_tasks = [
+                task
+                for task in self.store.data.tasks.values()
+                if task.list_id == task_list.id
+                and _is_due_for_end_of_day_audit(task, audit_date)
+            ]
+            if not due_tasks or any(task.has_remaining_assignments() for task in due_tasks):
+                continue
+            people = _assigned_people_for_tasks(self.store.data.people, due_tasks)
+            self.hass.bus.async_fire(
+                EVENT_CHECKLIST_CLEAR,
+                {
+                    "list_id": task_list.id,
+                    "list_name": task_list.name,
+                    "date": audit_date.isoformat(),
+                    "person_ids": [person["id"] for person in people],
+                    "people": people,
+                    "tasks": [
+                        _audit_task_payload(self.store.data.people, task)
+                        for task in due_tasks
+                    ],
+                },
+            )
 
     async def _async_maybe_notify_for_task(self, task: Task, now: datetime) -> bool:
         """Notify remaining assignees when a task is near expiry or reset."""
@@ -599,6 +639,55 @@ def _remaining_people(tasks: list[Task]) -> list[str]:
             if person_id not in task.completed_by
         )
     return people
+
+
+def _is_due_for_end_of_day_audit(task: Task, audit_date: date) -> bool:
+    """Return if a task should be complete by the audit date."""
+    due_at = _audit_due_at(task)
+    return due_at is not None and dt_util.as_local(due_at).date() <= audit_date
+
+
+def _audit_due_at(task: Task) -> datetime | None:
+    """Return the date boundary used for end-of-day checklist audits."""
+    candidates = [
+        value
+        for value in (task.due_at, task.expires_at, task.resets_at)
+        if value is not None
+    ]
+    return min(candidates) if candidates else None
+
+
+def _assigned_people_for_tasks(
+    people: dict[str, Person], tasks: list[Task]
+) -> list[dict[str, str]]:
+    """Return unique assigned people for an audit event."""
+    person_ids = sorted({person_id for task in tasks for person_id in task.assignees})
+    return [
+        {
+            "id": person_id,
+            "name": people[person_id].name if person_id in people else person_id,
+        }
+        for person_id in person_ids
+    ]
+
+
+def _audit_task_payload(people: dict[str, Person], task: Task) -> dict[str, Any]:
+    """Return task details for an audit event."""
+    return {
+        "id": task.id,
+        "title": task.title,
+        "due_at": utc_iso(task.due_at),
+        "expires_at": utc_iso(task.expires_at),
+        "resets_at": utc_iso(task.resets_at),
+        "assignee_ids": list(task.assignees),
+        "assignees": [
+            {
+                "id": person_id,
+                "name": people[person_id].name if person_id in people else person_id,
+            }
+            for person_id in task.assignees
+        ],
+    }
 
 
 def _next_reset(

@@ -163,6 +163,8 @@ data:
   completion_mode: any_assignee
 ```
 
+At 11:59 PM local time, each active checklist with due work is audited. If all tasks due for that checklist are complete, Home Assistant fires `assigned_tasks_checklist_clear` with the list id, list name, date, assigned people, and completed task details.
+
 ## Dashboard cards
 
 After adding people, Home Assistant will create To-do entities such as:
