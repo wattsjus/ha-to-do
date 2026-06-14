@@ -60,7 +60,7 @@ from .coordinator import AssignedTasksCoordinator
 from .models import parse_datetime, utc_iso
 
 AssignedTasksConfigEntry = ConfigEntry
-FRONTEND_VERSION = "20260613.0009"
+FRONTEND_VERSION = "20260613.0010"
 FRONTEND_MODULE = f"assigned-tasks-card-{FRONTEND_VERSION}.js"
 
 
@@ -528,7 +528,7 @@ def _next_due_at(
     """Return the next visible due boundary for a scheduled item."""
     now = dt_util.utcnow()
     if reset_interval == "weekly" and weekly_days:
-        return _next_weekly_day_due_at(weekly_days)
+        return _next_weekly_day_due_at(weekly_days, resets_at or due_at)
     if resets_at is not None and reset_interval in ("daily", "weekly", "monthly", "yearly"):
         every = max(1, int(reset_every or 1))
         due_at = resets_at
@@ -572,7 +572,7 @@ def _default_recurring_due_at(interval, every):
     return dt_util.as_utc(next_due)
 
 
-def _next_weekly_day_due_at(weekly_days):
+def _next_weekly_day_due_at(weekly_days, starts_at=None):
     """Return the next selected weekday at local end-of-day."""
     selected = [
         index for index, day in enumerate(("mon", "tue", "wed", "thu", "fri", "sat", "sun"))
@@ -581,11 +581,13 @@ def _next_weekly_day_due_at(weekly_days):
     if not selected:
         return None
     now = dt_util.now()
+    start = dt_util.as_local(starts_at) if starts_at is not None else None
+    base = start if start is not None and start > now else now
     for offset in range(0, 8):
-        candidate = (now + timedelta(days=offset)).replace(
+        candidate = (base + timedelta(days=offset)).replace(
             hour=23, minute=59, second=59, microsecond=0
         )
-        if candidate.weekday() in selected and candidate > now:
+        if candidate.weekday() in selected and candidate >= base:
             return dt_util.as_utc(candidate)
     return None
 
