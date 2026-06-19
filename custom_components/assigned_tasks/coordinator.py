@@ -67,6 +67,7 @@ class AssignedTasksCoordinator:
         """Load persisted state and start timers."""
         await self.store.async_load()
         await self.async_sync_home_assistant_people()
+        await self._async_initialize_recurring_task_boundaries()
         self._unsub_interval = async_track_time_interval(
             self.hass, self._async_tick, timedelta(minutes=1)
         )
@@ -90,10 +91,23 @@ class AssignedTasksCoordinator:
                     enabled=True,
                 )
                 changed = True
-            elif person.name != str(name):
+            elif person.name != str(name) or not person.enabled:
                 person.name = str(name)
                 person.enabled = True
                 changed = True
+        if changed:
+            await self.store.async_save()
+
+    async def _async_initialize_recurring_task_boundaries(self) -> None:
+        """Ensure recurring tasks without an anchor have a backend reset boundary."""
+        now = dt_util.utcnow()
+        changed = False
+        for task in self.store.data.tasks.values():
+            if task.resets_at is not None or not _has_recurring_interval(task):
+                continue
+            task.resets_at = _initial_recurring_reset_at(task, now)
+            _remove_stale_completions(task, task.resets_at)
+            changed = True
         if changed:
             await self.store.async_save()
 
@@ -320,6 +334,8 @@ class AssignedTasksCoordinator:
             notify_before_minutes=notify_before_minutes,
             visible_to=list(dict.fromkeys(visible_to)),
         )
+        if task.resets_at is None and _has_recurring_interval(task):
+            task.resets_at = _initial_recurring_reset_at(task, dt_util.utcnow())
         self.store.data.tasks[task.id] = task
         await self._async_save_and_update()
         return task
@@ -353,6 +369,8 @@ class AssignedTasksCoordinator:
         _apply_schedule_changes(task, changes)
         if ATTR_DUE_AT in changes:
             task.due_at = changes[ATTR_DUE_AT]
+        if task.resets_at is None and _has_recurring_interval(task):
+            task.resets_at = _initial_recurring_reset_at(task, dt_util.utcnow())
         await self._async_save_and_update()
 
     async def async_delete_task(self, task_id: str) -> None:
@@ -639,6 +657,55 @@ def _remaining_people(tasks: list[Task]) -> list[str]:
             if person_id not in task.completed_by
         )
     return people
+
+
+def _has_recurring_interval(task: Task) -> bool:
+    """Return if a task is configured to recur."""
+    return task.reset_interval in ("daily", "weekly", "monthly", "yearly")
+
+
+def _initial_recurring_reset_at(task: Task, now: datetime) -> datetime:
+    """Return the first reset boundary for an unanchored recurring task."""
+    local_now = dt_util.as_local(now)
+    if task.reset_interval == "weekly" and task.weekly_days:
+        selected = {
+            index
+            for index, day in enumerate(
+                ("mon", "tue", "wed", "thu", "fri", "sat", "sun")
+            )
+            if day in set(task.weekly_days)
+        }
+        for offset in range(0, 8):
+            candidate = _local_end_of_day(local_now + timedelta(days=offset))
+            if candidate.weekday() in selected and candidate >= local_now:
+                return dt_util.as_utc(candidate)
+
+    return dt_util.as_utc(_local_end_of_day(local_now))
+
+
+def _local_end_of_day(value: datetime) -> datetime:
+    """Return local end-of-day for a datetime."""
+    return value.replace(hour=23, minute=59, second=59, microsecond=0)
+
+
+def _remove_stale_completions(task: Task, reset_at: datetime | None) -> None:
+    """Remove completions that happened before the current reset boundary's day."""
+    if reset_at is None or not task.completed_by:
+        return
+    reset_date = dt_util.as_local(reset_at).date()
+    task.completed_by = {
+        person_id: completed_at
+        for person_id, completed_at in task.completed_by.items()
+        if _completion_date(completed_at) == reset_date
+    }
+
+
+def _completion_date(value: str) -> date | None:
+    """Return the local date for a completion timestamp."""
+    parsed = parse_datetime(value)
+    if parsed is None:
+        return None
+    return dt_util.as_local(parsed).date()
 
 
 def _is_due_for_end_of_day_audit(task: Task, audit_date: date) -> bool:
