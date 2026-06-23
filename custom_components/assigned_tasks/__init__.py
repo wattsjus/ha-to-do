@@ -532,7 +532,7 @@ def _next_due_at(
     if resets_at is not None and reset_interval in ("daily", "weekly", "monthly", "yearly"):
         every = max(1, int(reset_every or 1))
         due_at = resets_at
-        while due_at.date() <= now.date():
+        while due_at <= now:
             due_at = _next_recurring_due_at(due_at, reset_interval, every)
         return due_at
     if reset_interval in ("daily", "weekly", "monthly", "yearly"):
@@ -568,8 +568,7 @@ def _next_recurring_due_at(current, interval, every):
 def _default_recurring_due_at(interval, every):
     """Calculate a default end-of-day due boundary for an unanchored repeating task."""
     current = dt_util.now().replace(hour=23, minute=59, second=59, microsecond=0)
-    next_due = _next_recurring_due_at(current, interval, every)
-    return dt_util.as_utc(next_due)
+    return dt_util.as_utc(current)
 
 
 def _next_weekly_day_due_at(weekly_days, starts_at=None):
