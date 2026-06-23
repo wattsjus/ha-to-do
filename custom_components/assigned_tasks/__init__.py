@@ -60,7 +60,7 @@ from .coordinator import AssignedTasksCoordinator
 from .models import parse_datetime, utc_iso
 
 AssignedTasksConfigEntry = ConfigEntry
-FRONTEND_VERSION = "20260614.0001"
+FRONTEND_VERSION = "20260623.0001"
 FRONTEND_MODULE = f"assigned-tasks-card-{FRONTEND_VERSION}.js"
 
 

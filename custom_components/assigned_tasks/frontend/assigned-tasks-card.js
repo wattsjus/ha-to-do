@@ -633,7 +633,16 @@ class AssignedTasksCard extends HTMLElement {
   hasTaskStarted(task) {
     const start = this.parseDate(task.resets_at || task.due_at);
     if (!start) return true;
-    return this.startOfDay(start) <= this.startOfDay(new Date());
+    const activeStart = this.recurringActiveStart(task, start) || start;
+    return this.startOfDay(activeStart) <= this.startOfDay(new Date());
+  }
+
+  recurringActiveStart(task, boundary) {
+    if (!task.reset_interval || task.reset_interval === "none") return null;
+    if (task.reset_interval === "weekly" && (task.weekly_days || []).length > 0) {
+      return boundary;
+    }
+    return this.subtractInterval(boundary, task.reset_interval, task.reset_every);
   }
 
   isTaskComplete(task) {
